@@ -311,11 +311,20 @@ export class McpAppClient {
   }
   
   private handleToolInputPartial(params: ToolInputPartialParams): void {
+    // Validate arguments - must be an object, not empty string
+    // Cast to unknown first since runtime data may not match types
+    const args = params.arguments as unknown;
+    if (args === '' || args === null || typeof args !== 'object') {
+      // Skip invalid arguments - server may send empty string during streaming
+      return;
+    }
+    const validArgs = args as Record<string, unknown>;
+    
     this._state = {
       ...this._state,
       tool: {
         name: params.tool.name,
-        arguments: { ...this._state.tool.arguments, ...params.arguments },
+        arguments: { ...this._state.tool.arguments, ...validArgs },
         result: null,
         isStreaming: true,
       },
@@ -325,11 +334,20 @@ export class McpAppClient {
   }
   
   private handleToolInput(params: ToolInputParams): void {
+    // Validate arguments - must be an object, not empty string
+    // Cast to unknown first since runtime data may not match types
+    const args = params.arguments as unknown;
+    if (args === '' || args === null || typeof args !== 'object') {
+      // Skip invalid arguments - server may send empty string during streaming
+      return;
+    }
+    const validArgs = args as Record<string, unknown>;
+    
     this._state = {
       ...this._state,
       tool: {
         name: params.tool.name,
-        arguments: params.arguments,
+        arguments: validArgs,
         result: null,
         isStreaming: true,
       },
@@ -339,12 +357,19 @@ export class McpAppClient {
   }
   
   private handleToolResult(params: ToolResultParams): void {
+    // Validate result - skip if empty string (server may send empty string during streaming)
+    const result = params.result;
+    if (result === '' || result === undefined) {
+      // Skip invalid result
+      return;
+    }
+    
     this._state = {
       ...this._state,
       tool: {
         ...this._state.tool,
         name: params.tool.name,
-        result: params.result,
+        result: result,
         isStreaming: false,
       },
     };

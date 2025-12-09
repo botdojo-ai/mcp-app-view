@@ -19,7 +19,12 @@ export type ToolStatus = 'idle' | 'streaming' | 'complete' | 'error' | 'teardown
 
 export interface ToolState {
   name: string | null;
+  /** Final tool arguments from the LLM (set by tool-input) */
   arguments: Record<string, unknown> | null;
+  /** Latest partial update from tool-input-partial (progress notifications from tool execution) */
+  partialUpdate: Record<string, unknown> | null;
+  /** Tool progress updates (from notifyToolInputPartial with kind: 'botdojo-tool-progress') */
+  toolProgress: Record<string, unknown> | null;
   result: unknown | null;
   status: ToolStatus;
   isStreaming: boolean;
@@ -32,6 +37,8 @@ export interface UseMcpAppOptions {
   containerRef?: React.RefObject<HTMLElement>;
   /** Enable auto size reporting (default: true if containerRef provided) */
   autoReportSize?: boolean;
+  /** Callback when tool input partial (progress) is received */
+  onToolInputPartial?: (params: { tool: { name: string }; arguments: Record<string, unknown> }) => void;
 }
 
 export interface UseMcpAppReturn {
@@ -54,6 +61,8 @@ export interface UseMcpAppReturn {
   
   // Utilities
   getArgumentValue: <T>(key: string, fallback?: T) => T | undefined;
+  getPartialUpdateValue: <T>(key: string, fallback?: T) => T | undefined;
+  getToolProgressValue: <T>(key: string, fallback?: T) => T | undefined;
   
   // Raw client access
   client: McpAppClient;
@@ -98,6 +107,7 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
     debug = false,
     containerRef,
     autoReportSize = !!containerRef,
+    onToolInputPartial,
   } = options;
   
   // Create stable client ref
@@ -109,6 +119,10 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
   
   const client = clientRef.current;
   
+  // Use ref for callback to avoid stale closures
+  const onToolInputPartialRef = useRef(onToolInputPartial);
+  onToolInputPartialRef.current = onToolInputPartial;
+  
   // React state
   const [isInitialized, setIsInitialized] = useState(false);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
@@ -117,6 +131,8 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
   const [tool, setTool] = useState<ToolState>({
     name: null,
     arguments: null,
+    partialUpdate: null,
+    toolProgress: null,
     result: null,
     status: 'idle',
     isStreaming: false,
@@ -142,30 +158,56 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
     });
     
     const unsubToolInputPartial = client.on('toolInputPartial', (params) => {
+      // tool-input-partial is used for both:
+      // 1. LLM argument streaming (partial JSON as model types) - goes to partialUpdate
+      // 2. Tool progress notifications (kind: 'botdojo-tool-progress') - handled via callback
+      const isProgressUpdate = params.arguments?.kind === 'botdojo-tool-progress';
+      
+      // Call user callback if provided (for progress updates)
+      onToolInputPartialRef.current?.(params);
+      
+      if (isProgressUpdate) {
+        // Progress update - store in toolProgress
+        setTool(prev => ({
+          ...prev,
+          name: params.tool.name,
+          toolProgress: params.arguments,
+          status: 'streaming',
+          isStreaming: true,
+        }));
+      } else {
+        // LLM argument streaming - store in partialUpdate
+        setTool(prev => ({
+          ...prev,
+          name: params.tool.name,
+          partialUpdate: params.arguments,
+          status: 'streaming',
+          isStreaming: true,
+        }));
+      }
+    });
+    
+    const unsubToolInput = client.on('toolInput', (params) => {
+      // Final tool arguments from the LLM - clear partialUpdate as argument streaming is done
+      // Keep toolProgress as tool may still send progress updates during execution
       setTool(prev => ({
+        ...prev,
         name: params.tool.name,
-        arguments: { ...prev.arguments, ...params.arguments },
+        arguments: params.arguments,
+        partialUpdate: null,
         result: null,
         status: 'streaming',
         isStreaming: true,
       }));
     });
     
-    const unsubToolInput = client.on('toolInput', (params) => {
-      setTool({
-        name: params.tool.name,
-        arguments: params.arguments,
-        result: null,
-        status: 'streaming',
-        isStreaming: true,
-      });
-    });
-    
     const unsubToolResult = client.on('toolResult', (params) => {
+      // Tool completed - clear toolProgress as execution is done
       setTool(prev => ({
         ...prev,
         name: params.tool.name,
         result: params.result,
+        toolProgress: null,
         status: 'complete',
         isStreaming: false,
       }));
@@ -256,6 +298,16 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
     return (value as T | undefined) ?? fallback;
   }, [tool.arguments]);
   
+  const getPartialUpdateValue = useCallback(<T,>(key: string, fallback?: T): T | undefined => {
+    const value = tool.partialUpdate?.[key];
+    return (value as T | undefined) ?? fallback;
+  }, [tool.partialUpdate]);
+  
+  const getToolProgressValue = useCallback(<T,>(key: string, fallback?: T): T | undefined => {
+    const value = tool.toolProgress?.[key];
+    return (value as T | undefined) ?? fallback;
+  }, [tool.toolProgress]);
+  
   return {
     isInitialized,
     appInfo,
@@ -267,6 +319,8 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
     callTool,
     reportSize,
     getArgumentValue,
+    getPartialUpdateValue,
+    getToolProgressValue,
     client,
   };
 }

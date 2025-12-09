@@ -6,7 +6,7 @@
 import React, { useRef, type ReactNode, type CSSProperties } from 'react';
 import { McpAppProvider, type McpAppProviderProps } from './McpAppContext';
 
-export interface McpAppProps<TState = unknown> extends Omit<McpAppProviderProps<TState>, 'children'> {
+export interface McpAppProps extends Omit<McpAppProviderProps, 'children'> {
   children: ReactNode;
   /** CSS class name */
   className?: string;
@@ -24,35 +24,33 @@ export interface McpAppProps<TState = unknown> extends Omit<McpAppProviderProps<
  * ```tsx
  * export default function MyWidget() {
  *   return (
- *     <McpApp initialState={{ counter: 0 }}>
+ *     <McpApp>
  *       <CounterUI />
  *     </McpApp>
  *   );
  * }
  * 
  * function CounterUI() {
- *   const { state, updateState, tool } = useMcpApp<{ counter: number }>();
+ *   const { hostContext, tool } = useMcpAppContext();
+ *   
+ *   // State comes from hostContext
+ *   const counter = hostContext?.state?.counter ?? 0;
  *   
  *   if (tool.isStreaming) return <div>Loading...</div>;
  *   
  *   return (
  *     <div>
- *       <h1>{state.counter}</h1>
- *       <button onClick={() => updateState({ counter: state.counter + 1 })}>
- *         +
- *       </button>
+ *       <h1>{counter}</h1>
  *     </div>
  *   );
  * }
  * ```
  */
-export function McpApp<TState = unknown>({
+export function McpApp({
   children,
   className,
   style,
   autoReportSize = true,
-  initialState,
-  stateProvider,
   clientOptions,
   onInitialize,
   onToolInput,
@@ -60,7 +58,7 @@ export function McpApp<TState = unknown>({
   onToolResult,
   onHostContextChanged,
   onTeardown,
-}: McpAppProps<TState>) {
+}: McpAppProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Auto size reporting via ResizeObserver
@@ -73,8 +71,6 @@ export function McpApp<TState = unknown>({
   
   return (
     <McpAppProvider
-      initialState={initialState}
-      stateProvider={stateProvider}
       clientOptions={clientOptions}
       onInitialize={onInitialize}
       onToolInput={onToolInput}
@@ -89,4 +85,3 @@ export function McpApp<TState = unknown>({
     </McpAppProvider>
   );
 }
-

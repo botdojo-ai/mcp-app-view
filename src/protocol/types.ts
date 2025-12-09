@@ -80,6 +80,10 @@ export interface ToolInfo {
   id?: string | number;
   /** Tool schema (name, description, inputSchema) */
   tool: Tool;
+  /** Tool arguments (BotDojo extension for hydration) */
+  arguments?: Record<string, unknown>;
+  /** Tool result (BotDojo extension for hydration) */
+  result?: unknown;
 }
 
 /**
@@ -122,7 +126,7 @@ export interface UiInitializeParams {
 }
 
 /**
- * ui/notifications/tool-input-partial - Streaming tool arguments
+ * ui/notifications/tool-input-partial - Streaming tool arguments or progress
  */
 export interface ToolInputPartialParams {
   tool: { name: string };
