@@ -110,11 +110,14 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
     onToolInputPartial,
   } = options;
   
-  // Create stable client ref
+  // Create stable client ref and start IMMEDIATELY to not miss messages
   const clientRef = useRef<McpAppClient | null>(null);
   
   if (!clientRef.current) {
     clientRef.current = new McpAppClient({ debug });
+    // Start listening immediately - don't wait for useEffect!
+    // This prevents race condition where host sends messages before listener is ready
+    clientRef.current.start();
   }
   
   const client = clientRef.current;
@@ -141,6 +144,26 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
   // Setup client event handlers
   useEffect(() => {
     if (!client) return;
+    
+    // Sync any state that arrived before handlers were set up
+    // (client.start() is called synchronously, so messages may arrive before useEffect)
+    const currentState = client.state;
+    if (currentState.isInitialized) {
+      setIsInitialized(true);
+      setAppInfo(currentState.appInfo);
+      setHostCapabilities(currentState.hostCapabilities);
+      setHostContext(currentState.hostContext);
+      if (currentState.tool.name) {
+        setTool(prev => ({
+          ...prev,
+          name: currentState.tool.name,
+          arguments: currentState.tool.arguments,
+          result: currentState.tool.result,
+          isStreaming: currentState.tool.isStreaming,
+          status: currentState.tool.isStreaming ? 'streaming' : (currentState.tool.result ? 'complete' : 'idle'),
+        }));
+      }
+    }
     
     const unsubInit = client.on('initialize', (params) => {
       setIsInitialized(true);
@@ -232,7 +255,8 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
       }));
     });
     
-    client.start();
+    // Note: client.start() is now called synchronously when client is created
+    // to prevent race condition with host messages
     
     return () => {
       unsubInit();
