@@ -145,25 +145,8 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
   useEffect(() => {
     if (!client) return;
     
-    // Sync any state that arrived before handlers were set up
-    // (client.start() is called synchronously, so messages may arrive before useEffect)
-    const currentState = client.state;
-    if (currentState.isInitialized) {
-      setIsInitialized(true);
-      setAppInfo(currentState.appInfo);
-      setHostCapabilities(currentState.hostCapabilities);
-      setHostContext(currentState.hostContext);
-      if (currentState.tool.name) {
-        setTool(prev => ({
-          ...prev,
-          name: currentState.tool.name,
-          arguments: currentState.tool.arguments,
-          result: currentState.tool.result,
-          isStreaming: currentState.tool.isStreaming,
-          status: currentState.tool.isStreaming ? 'streaming' : (currentState.tool.result ? 'complete' : 'idle'),
-        }));
-      }
-    }
+    // Register handlers FIRST, then sync any state that arrived before
+    // This ensures no messages are lost in the gap between sync and handler registration
     
     const unsubInit = client.on('initialize', (params) => {
       setIsInitialized(true);
@@ -255,8 +238,27 @@ export function useMcpApp(options: UseMcpAppOptions = {}): UseMcpAppReturn {
       }));
     });
     
-    // Note: client.start() is now called synchronously when client is created
-    // to prevent race condition with host messages
+    // NOW sync any state that arrived before handlers were set up
+    // This must happen AFTER handlers are registered to avoid missing messages
+    // that arrive between sync and handler registration
+    const currentState = client.state;
+    if (currentState.isInitialized) {
+      setIsInitialized(true);
+      setAppInfo(currentState.appInfo);
+      setHostCapabilities(currentState.hostCapabilities);
+      setHostContext(currentState.hostContext);
+      if (currentState.tool.name || currentState.tool.arguments) {
+        setTool({
+          name: currentState.tool.name,
+          arguments: currentState.tool.arguments,
+          partialUpdate: null,
+          toolProgress: null,
+          result: currentState.tool.result,
+          isStreaming: currentState.tool.isStreaming,
+          status: currentState.tool.isStreaming ? 'streaming' : (currentState.tool.result ? 'complete' : 'idle'),
+        });
+      }
+    }
     
     return () => {
       unsubInit();

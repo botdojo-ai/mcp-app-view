@@ -130,6 +130,9 @@ export class McpAppClient {
    */
   start(): void {
     this.transport.start(this.handleMessage.bind(this));
+    // Signal to proxy/host that we're ready to receive messages
+    // This allows the proxy to queue messages until the client is listening
+    this.transport.sendNotification('ui/notifications/client-ready', {});
   }
   
   /**
