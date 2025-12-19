@@ -1,0 +1,75 @@
+{
+  "name": "mcp-app-view",
+  "version": "0.1.5",
+  "description": "Build and embed MCP Apps (SEP-1865) - framework agnostic with optional React support. Built by BotDojo.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.mjs",
+      "require": "./dist/react/index.js"
+    },
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "import": "./dist/host/index.mjs",
+      "require": "./dist/host/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-apps",
+    "sep-1865",
+    "model-context-protocol",
+    "ai",
+    "react",
+    "sdk",
+    "botdojo"
+  ],
+  "author": {
+    "name": "BotDojo",
+    "url": "https://botdojo.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/botdojo/mcp-app-view",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/botdojo/mcp-app-view"
+  },
+  "bugs": {
+    "url": "https://github.com/botdojo/mcp-app-view/issues"
+  },
+  "sideEffects": false
+}
