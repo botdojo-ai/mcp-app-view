@@ -103,6 +103,12 @@ export class McpAppClient {
   private transport: McpTransport;
   private emitter = new EventEmitter<McpEventMap>();
   private autoAcknowledge: boolean;
+  private requestHandlers = new Map<string, (params: any) => Promise<any>>();
+
+  setRequestHandler(method: string, handler?: (params: any) => Promise<any>): void {
+    if (handler) this.requestHandlers.set(method, handler);
+    else this.requestHandlers.delete(method);
+  }
   private _state: McpAppClientState = {
     isInitialized: false,
     appInfo: null,
@@ -256,7 +262,14 @@ export class McpAppClient {
     if (!('method' in message)) return;
     
     const { method, params, id } = message as JsonRpcRequest;
-    
+    if (method.startsWith('botdojo/mcp/')) {
+      const handler = this.requestHandlers.get(method);
+      if (handler && id !== undefined) {
+        void handler(params).then(result => this.transport.sendResponse(id, result), error =>
+          this.transport.sendError(id, -32000, error instanceof Error ? error.message : String(error)));
+      }
+      return; // Another client must never acknowledge a handler it does not own.
+    }
     switch (method) {
       case McpMethods.INITIALIZE:
         this.handleInitialize(params as UiInitializeParams, id);

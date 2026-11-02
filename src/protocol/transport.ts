@@ -186,8 +186,10 @@ export class McpTransport {
       return;
     }
     
-    // Learn origin from first valid message
-    if (!this.learnedOrigin && event.origin) {
+    if (event.source !== this.targetWindow) return;
+    if (this.targetOrigin !== '*' && event.origin !== this.targetOrigin) return;
+    // Learn only from our parent; opaque origins require source-bound wildcard delivery.
+    if (!this.learnedOrigin && event.origin && event.origin !== 'null') {
       this.learnedOrigin = event.origin;
       this.log(`Learned origin: ${this.learnedOrigin}`);
     }

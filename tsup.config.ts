@@ -21,6 +21,16 @@ export default defineConfig([
     external: ['react'],
     treeshake: true,
   },
+  // Frontend MCP entry (an app registers live tools with its host)
+  {
+    entry: { index: "src/frontend.ts" },
+    outDir: "dist/frontend",
+    format: ["cjs", "esm"],
+    dts: true,
+    sourcemap: true,
+    external: ["react"],
+    treeshake: true,
+  },
   // Host entry (for embedding MCP apps)
   {
     entry: ['src/host/index.ts'],

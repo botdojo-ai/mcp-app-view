@@ -297,3 +297,23 @@ See the product enhancement example in the playground:
 - Dynamic size reporting
 
 
+
+## Expose frontend tools in a BotDojo Workspace
+
+A Workspace-hosted app can use `registerFrontendMcp` from
+`@botdojo/chat-sdk/frontend-mcp` (or `mcp-app-view/frontend`).
+Define tools using the existing frontend `ModelContext` shape: `name`,
+`description`, `inputSchema`, and local `execute` functions. Only metadata crosses
+into the host. Tools operate against the live iframe and are removed on teardown.
+
+Single-file HTML imports the SDK's standalone build from a pinned URL,
+`https://cdn.jsdelivr.net/npm/@botdojo/chat-sdk@0.0.31/lib/frontend-mcp/index.js`.
+Workspace previews allow that exact URL; an MCP app resource that imports it lists it
+in `_meta.ui.csp.resourceDomains`. No API token or embedded chat is required. If using an existing `McpAppClient`,
+pass `{ client }` as the registration function's second argument to share its
+transport. Wait for registration acknowledgement before showing a ready state.
+
+See the task-board example in the BotDojo SDK Playground and the API & SDK guide
+at `https://docs.botdojo.com/docs/api-sdk/workspace-app-tools` for the complete
+contract. This is a negotiated BotDojo extension; other MCP App hosts can report
+that frontend MCP registration is unavailable.
